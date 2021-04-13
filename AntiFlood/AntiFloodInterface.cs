@@ -35,12 +35,14 @@ namespace AntiFlood
             if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(data.Player.ActiveColony.ColonyID))
             {
                 WaterAntiFlood.coloniesWithWaterEnabled.Add(data.Player.ActiveColony.ColonyID, data.Player.ID);
-                Chatting.Chat.Send(data.Player, "<color=green>The spread of water in the colony has been enabled</color>");
+                
+                Chatting.Chat.Send(data.Player.ActiveColony.Owners, "<color=green>The spread of water in the colony has been enabled.</color>");
+                Chatting.Chat.Send(data.Player.ActiveColony.Owners, "<color=green>You have to <b>place and remove a block next to the water</b> so that it can spread.</color>");
             }
             else
             {
                 WaterAntiFlood.coloniesWithWaterEnabled.Remove(data.Player.ActiveColony.ColonyID);
-                Chatting.Chat.Send(data.Player, "<color=green>The spread of water in the colony has been disabled</color>");
+                Chatting.Chat.Send(data.Player.ActiveColony.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
             }
 
             NetworkMenuManager.SendInventoryManageColonyUI(data.Player);
@@ -58,6 +60,7 @@ namespace AntiFlood
                     if (WaterAntiFlood.coloniesWithWaterEnabled[colony.ColonyID].Equals(player.ID))
                     {
                         WaterAntiFlood.coloniesWithWaterEnabled.Remove(colony.ColonyID);
+                        Chatting.Chat.Send(colony.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
                     }
             }
         }
