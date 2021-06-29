@@ -17,11 +17,11 @@ namespace AntiFlood
     {
         public static Dictionary<int, NetworkID> coloniesWithWaterEnabled = new Dictionary<int, NetworkID>();
 
-        private static Stopwatch tickTimer = Stopwatch.StartNew();
+        private static readonly Stopwatch tickTimer = Stopwatch.StartNew();
 
-        private static Pipliz.Collections.SortedList<Vector3Int, bool> locationsToCheck = new Pipliz.Collections.SortedList<Vector3Int, bool>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
+        private static readonly Pipliz.Collections.SortedList<Vector3Int, bool> locationsToCheck = new Pipliz.Collections.SortedList<Vector3Int, bool>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
 
-        private static Pipliz.Collections.SortedList<Vector3Int, bool> tempList = new Pipliz.Collections.SortedList<Vector3Int, bool>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
+        private static readonly Pipliz.Collections.SortedList<Vector3Int, bool> tempList = new Pipliz.Collections.SortedList<Vector3Int, bool>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
 
         private static Task<JSONNode> LoadingTask;
 
@@ -186,7 +186,7 @@ namespace AntiFlood
                     return true;
             }
 
-            switch (ServerManager.TryChangeBlock(spot, BuiltinBlocks.Types.air, BuiltinBlocks.Types.water, default(BlockChangeRequestOrigin), ESetBlockFlags.TriggerEntityCallbacks | ESetBlockFlags.TriggerNeighbourCallbacks))
+            switch (ServerManager.TryChangeBlock(spot, BuiltinBlocks.Types.air, BuiltinBlocks.Types.water, default, ESetBlockFlags.TriggerEntityCallbacks | ESetBlockFlags.TriggerNeighbourCallbacks))
             {
                 case EServerChangeBlockResult.Success:
                     spreadMax--;
