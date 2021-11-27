@@ -19,7 +19,7 @@ namespace AntiFlood
 
         private static long MillisecondsPerTick;
 
-        private static SortedSet<Vector3Int> locationsToCheck = new SortedSet<Vector3Int>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
+        public static SortedSet<Vector3Int> locationsToCheck = new SortedSet<Vector3Int>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
 
         private static SortedSet<Vector3Int> tempList = new SortedSet<Vector3Int>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
 
@@ -132,8 +132,8 @@ namespace AntiFlood
 
         private static bool CheckSpreadabilitySpot(Vector3Int spot, ref int spreadMax)
         {
-            //Seach CLOSEST banner
-            if(ServerManager.BlockEntityTracker.BannerTracker.TryGetClosest(spot, out var banner))
+            //Seach CLOSEST banner | Not sure if this is the best way... Water won't spread through abandoned banners...
+            if (ServerManager.BlockEntityTracker.BannerTracker.TryGetClosest(spot, out var banner))
             {
                 //Check SAFE area
                 if ((spot - banner.Position).MaxPartAbs <= banner.SafeRadius)
