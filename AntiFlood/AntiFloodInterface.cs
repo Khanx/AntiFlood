@@ -54,8 +54,10 @@ namespace AntiFlood
             if (player == null)
                 return;
 
-            foreach (var colony in player.Colonies)
+            for (int i = 0; i < player.Colonies.Count; i++)
             {
+                Colony colony = player.Colonies[i];
+
                 if (WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(colony.ColonyID))
                     if (WaterAntiFlood.coloniesWithWaterEnabled[colony.ColonyID].Equals(player.ID))
                     {
