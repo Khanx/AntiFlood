@@ -11,7 +11,7 @@ namespace AntiFlood
     [BlockEntityAutoLoader]
     public class WaterAntiFlood : ISingleBlockEntityMapping, IUpdatedAdjacentType, IChangedWithType
     {
-        public static System.Collections.Generic.Dictionary<int, NetworkID> coloniesWithWaterEnabled = new System.Collections.Generic.Dictionary<int, NetworkID>();
+        public static System.Collections.Generic.Dictionary<ColonyID, Players.PlayerID> coloniesWithWaterEnabled = new System.Collections.Generic.Dictionary<ColonyID, Players.PlayerID>();
 
         private static ServerTimeStamp NextTick;
 
@@ -139,7 +139,7 @@ namespace AntiFlood
                 if ((spot - banner.Position).MaxPartAbs <= banner.SafeRadius)
                 {
                     //Water spread disabled
-                    if (!coloniesWithWaterEnabled.ContainsKey(banner.Colony.ColonyID))
+                    if (!coloniesWithWaterEnabled.ContainsKey(banner.Colony.ColonyGroup.MainColonyID))
                         return true;
                 }
             }

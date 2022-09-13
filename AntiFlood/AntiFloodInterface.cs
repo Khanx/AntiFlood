@@ -15,12 +15,12 @@ namespace AntiFlood
                 return;
 
             //Only the leader of the colony can enable / disable water spread
-            if (player.ActiveColony.Owners[0] != player)
+            if (player.ActiveColonyGroup.Owners[0] != player)
                 return;
 
             ButtonCallback spreadWater;
 
-            if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(player.ActiveColony.ColonyID))
+            if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(player.ActiveColony.ColonyGroup.MainColonyID))
                 spreadWater = new ButtonCallback("Khanx.AntiFlood.Button", new LabelData("Enable water spread", UnityEngine.Color.green, UnityEngine.TextAnchor.MiddleCenter));
             else
                 spreadWater = new ButtonCallback("Khanx.AntiFlood.Button", new LabelData("Disable water spread", UnityEngine.Color.red, UnityEngine.TextAnchor.MiddleCenter));
@@ -34,32 +34,35 @@ namespace AntiFlood
             if (!data.ButtonIdentifier.Equals("Khanx.AntiFlood.Button"))
                 return;
 
-            if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(data.Player.ActiveColony.ColonyID))
+            if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(data.Player.ActiveColony.ColonyGroup.MainColonyID))
             {
-                WaterAntiFlood.coloniesWithWaterEnabled.Add(data.Player.ActiveColony.ColonyID, data.Player.ID);
+                WaterAntiFlood.coloniesWithWaterEnabled.Add(data.Player.ActiveColony.ColonyGroup.MainColonyID, data.Player.ID);
 
-                Chatting.Chat.Send(data.Player.ActiveColony.Owners, "<color=green>The spread of water in the colony has been enabled.</color>");
+                Chatting.Chat.Send(data.Player.ActiveColonyGroup.Owners, "<color=green>The spread of water in the colony has been enabled.</color>");
 
                 //Force OnUpdateAdjacent to each block of water
                 if (ServerManager.ServerSettings.Water.MaxUpdatesPerTick > 0)
                 {
                     List<Vector3Int> positions = new List<Vector3Int>();
 
-                    for (int i = 0; i < data.Player.ActiveColony.Banners.Count; i++)
+                    for (int i = 0; i < data.Player.ActiveColonyGroup.Colonies.Count; i++)
                     {
-                        BlockEntities.Implementations.BannerTracker.Banner banner = data.Player.ActiveColony.Banners[i];
+                        for (int j = 0; j < data.Player.ActiveColonyGroup.Colonies[i].Banners.Count; j++)
+                        {
+                            BlockEntities.Implementations.BannerTracker.Banner banner = data.Player.ActiveColonyGroup.Colonies[i].Banners[j];
 
-                        ForeachBlockInArea(banner.Position - (banner.SafeRadius + 1), banner.Position + (banner.SafeRadius + 1), BlockTypes.BuiltinBlocks.Indices.water, pos =>
-                          {
-                              WaterAntiFlood.locationsToCheck.AddIfUnique(pos);
-                          });
+                            ForeachBlockInArea(banner.Position - (banner.SafeRadius + 1), banner.Position + (banner.SafeRadius + 1), BlockTypes.BuiltinBlocks.Indices.water, pos =>
+                            {
+                                WaterAntiFlood.locationsToCheck.AddIfUnique(pos);
+                            });
+                        }
                     }
                 }
             }
             else
             {
-                WaterAntiFlood.coloniesWithWaterEnabled.Remove(data.Player.ActiveColony.ColonyID);
-                Chatting.Chat.Send(data.Player.ActiveColony.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
+                WaterAntiFlood.coloniesWithWaterEnabled.Remove(data.Player.ActiveColonyGroup.MainColonyID);
+                Chatting.Chat.Send(data.Player.ActiveColonyGroup.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
             }
 
             NetworkMenuManager.SendInventoryManageColonyUI(data.Player);
@@ -71,15 +74,15 @@ namespace AntiFlood
             if (player == null)
                 return;
 
-            for (int i = 0; i < player.Colonies.Count; i++)
+            for (int i = 0; i < player.ColonyGroups.Count; i++)
             {
-                Colony colony = player.Colonies[i];
+                Colony colony = player.ColonyGroups[i].MainColony;
 
                 if (WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(colony.ColonyID))
                     if (WaterAntiFlood.coloniesWithWaterEnabled[colony.ColonyID].Equals(player.ID))
                     {
                         WaterAntiFlood.coloniesWithWaterEnabled.Remove(colony.ColonyID);
-                        Chatting.Chat.Send(colony.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
+                        Chatting.Chat.Send(colony.ColonyGroup.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
                     }
             }
         }
