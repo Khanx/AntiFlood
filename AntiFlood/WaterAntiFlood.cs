@@ -1,13 +1,9 @@
-﻿using BlockEntities;
+﻿using Pipliz;
+using Pipliz.Collections;
 using BlockTypes;
-using Pipliz;
-using Pipliz.Helpers;
-using Pipliz.JSON;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Threading.Tasks;
+using Saving;
+using BlockEntities;
+
 
 namespace AntiFlood
 {
@@ -15,15 +11,17 @@ namespace AntiFlood
     [BlockEntityAutoLoader]
     public class WaterAntiFlood : ISingleBlockEntityMapping, IUpdatedAdjacentType, IChangedWithType
     {
-        public static Dictionary<int, NetworkID> coloniesWithWaterEnabled = new Dictionary<int, NetworkID>();
+        public static System.Collections.Generic.Dictionary<ColonyID, Players.PlayerID> coloniesWithWaterEnabled = new System.Collections.Generic.Dictionary<ColonyID, Players.PlayerID>();
 
-        private static readonly Stopwatch tickTimer = Stopwatch.StartNew();
+        private static ServerTimeStamp NextTick;
 
-        private static readonly Pipliz.Collections.SortedList<Vector3Int, bool> locationsToCheck = new Pipliz.Collections.SortedList<Vector3Int, bool>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
+        private static int UpdatesPerTick;
 
-        private static readonly Pipliz.Collections.SortedList<Vector3Int, bool> tempList = new Pipliz.Collections.SortedList<Vector3Int, bool>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
+        private static long MillisecondsPerTick;
 
-        private static Task<JSONNode> LoadingTask;
+        public static SortedSet<Vector3Int> locationsToCheck = new SortedSet<Vector3Int>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
+
+        private static SortedSet<Vector3Int> tempList = new SortedSet<Vector3Int>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
 
         ItemTypes.ItemType ISingleBlockEntityMapping.TypeToRegister => BuiltinBlocks.Types.water;
 
@@ -31,7 +29,7 @@ namespace AntiFlood
         {
             if (ServerManager.ServerSettings.Water.MaxUpdatesPerTick > 0)
             {
-                locationsToCheck.AddIfUnique(data.UpdatePosition, val: true);
+                locationsToCheck.AddIfUnique(data.UpdatePosition);
             }
         }
 
@@ -39,103 +37,58 @@ namespace AntiFlood
         {
             if (typeNew == BuiltinBlocks.Types.water && ServerManager.ServerSettings.Water.MaxUpdatesPerTick > 0)
             {
-                locationsToCheck.AddIfUnique(blockPosition, val: true);
+                locationsToCheck.AddIfUnique(blockPosition);
             }
         }
 
         [ModLoader.ModCallback(ModLoader.EModCallbackType.OnUpdate, "Khanx.AntiFlood.update_water")]
         private static void Tick()
         {
-            if (ServerManager.ServerSettings.Water.MaxUpdatesPerTick > 0)
+            if (UpdatesPerTick > 0 && NextTick.IsPassed)
             {
-                if (!tickTimer.IsRunning)
-                {
-                    tickTimer.Start();
-                }
-
-                if (tickTimer.ElapsedMilliseconds >= ServerManager.ServerSettings.Water.TickTimeMilliSeconds)
-                {
-                    tickTimer.Reset();
-                    ProcessTick();
-                    tickTimer.Start();
-                }
+                NextTick = NextTick.Add(MillisecondsPerTick);
+                ProcessTick();
             }
         }
 
-        [ModLoader.ModCallback(ModLoader.EModCallbackType.AfterSelectedWorld, "Khanx.AntiFlood.startloadwater", -100f)]
-        private static void LoadStart()
-        {
-            LoadingTask = Task.Run(() => JSON.Deserialize("gamedata/savegames/" + ServerManager.WorldName + "/blocktypes/water.json", errorIfMissing: false));
-        }
-
         [ModLoader.ModCallback(ModLoader.EModCallbackType.AfterItemTypesDefined, "Khanx.AntiFlood.endloadwater")]
-        [ModLoader.ModDocumentation("Starts loading water blocks")]
         private static void Load()
         {
-            LoadingTask.Wait();
-            JSONNode result = LoadingTask.Result;
-            LoadingTask.Dispose();
-            LoadingTask = null;
-            if (result == null || ServerManager.ServerSettings.Water.MaxUpdatesPerTick <= 0)
+            UpdatesPerTick = ServerManager.ServerSettings.Water.MaxUpdatesPerTick;
+            MillisecondsPerTick = ServerManager.ServerSettings.Water.TickTimeMilliSeconds;
+            NextTick = ServerTimeStamp.Now.Add(MillisecondsPerTick);
+            if (UpdatesPerTick <= 0)
             {
                 return;
             }
 
-            foreach (JSONNode item in result["NodesToCheck"].LoopArray())
+            foreach (Vector3Int item in ServerManager.SaveManager.WorldDataBase.ExtractWaterSpread())
             {
-                try
-                {
-                    locationsToCheck.Add((Vector3Int)item, val: true);
-                }
-                catch (Exception exc)
-                {
-                    Log.WriteException("Error loading a water node to check;", exc);
-                }
+                locationsToCheck.Add(item);
             }
         }
 
-        [ModLoader.ModCallback(ModLoader.EModCallbackType.OnQuit, "Khanx.AntiFlood.savewater")]
         [ModLoader.ModCallback(ModLoader.EModCallbackType.OnAutoSaveWorld, "Khanx.AntiFlood.autosavewater")]
         [ModLoader.ModDocumentation("Saves water data")]
         private static void Save()
         {
-            if (ServerManager.WorldName == null)
+            WorldDB worldDataBase = ServerManager.SaveManager.WorldDataBase;
+            if (worldDataBase != null)
             {
-                return;
-            }
-
-            string filePath = $"gamedata/savegames/{ServerManager.WorldName}/blocktypes/water.json";
-            if (locationsToCheck.Count > 0)
-            {
-                JSONNode root = new JSONNode();
-                JSONNode jSONNode = new JSONNode(NodeType.Array);
-                jSONNode.SetArrayCapacity(locationsToCheck.Count);
-                root["NodesToCheck"] = jSONNode;
-                for (int i = 0; i < locationsToCheck.Count; i++)
+                if (locationsToCheck.Count <= 0)
                 {
-                    jSONNode.AddToArray((JSONNode)locationsToCheck.GetKeyAtIndex(i));
+                    worldDataBase.SetWaterSpread(null, 0);
                 }
-
-                Application.StartAsyncQuitToComplete(delegate
+                else
                 {
-                    IOHelper.CreateDirectoryFromFile(filePath);
-                    JSON.Serialize(filePath, root);
-                });
-                return;
-            }
-
-            Application.StartAsyncQuitToComplete(delegate
-            {
-                if (File.Exists(filePath))
-                {
-                    File.Delete(filePath);
+                    worldDataBase.SetWaterSpread(locationsToCheck.EntriesRaw, locationsToCheck.Count);
                 }
-            });
+            }
         }
 
         private static void ProcessTick()
         {
-            int spreadMax = ServerManager.ServerSettings.Water.MaxUpdatesPerTick;
+            int spreadMax = UpdatesPerTick;
             if (locationsToCheck.Count <= 0)
             {
                 return;
@@ -148,10 +101,11 @@ namespace AntiFlood
             }
 
             locationsToCheck.CopyTo(tempList);
-            int num = tempList.Count - 1;
+            int count = tempList.Count;
+            int num = count - 1;
             while (num >= 0 && spreadMax > 0)
             {
-                CheckSpreadabilityToNeighbours(tempList.GetKeyAtIndex(num), ref spreadMax);
+                CheckSpreadabilityToNeighbours(tempList[num], ref spreadMax);
                 num--;
             }
         }
@@ -178,15 +132,19 @@ namespace AntiFlood
 
         private static bool CheckSpreadabilitySpot(Vector3Int spot, ref int spreadMax)
         {
-            if (ServerManager.BlockEntityTracker.BannerTracker.IsSafeZone(spot, out Vector3Int foundBanner))
+            //Seach CLOSEST banner | Not sure if this is the best way... Water won't spread through abandoned banners...
+            if (ServerManager.BlockEntityTracker.BannerTracker.TryGetClosest(spot, out var banner))
             {
-                ServerManager.BlockEntityTracker.BannerTracker.TryGetAt(foundBanner, out BlockEntities.Implementations.BannerTracker.Banner banner);
-
-                if (!coloniesWithWaterEnabled.ContainsKey(banner.Colony.ColonyID))
-                    return true;
+                //Check SAFE area
+                if ((spot - banner.Position).MaxPartAbs <= banner.SafeRadius)
+                {
+                    //Water spread disabled
+                    if (!coloniesWithWaterEnabled.ContainsKey(banner.Colony.ColonyGroup.MainColonyID))
+                        return true;
+                }
             }
 
-            switch (ServerManager.TryChangeBlock(spot, BuiltinBlocks.Types.air, BuiltinBlocks.Types.water, default, ESetBlockFlags.TriggerEntityCallbacks | ESetBlockFlags.TriggerNeighbourCallbacks))
+            switch (ServerManager.TryChangeBlock(spot, BuiltinBlocks.Types.air, BuiltinBlocks.Types.water, default(BlockChangeRequestOrigin), ESetBlockFlags.TriggerEntityCallbacks | ESetBlockFlags.TriggerNeighbourCallbacks))
             {
                 case EServerChangeBlockResult.Success:
                     spreadMax--;

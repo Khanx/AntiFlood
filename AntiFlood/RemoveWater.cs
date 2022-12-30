@@ -1,17 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using BlockEntities;
+using System.Collections.Generic;
 
 
 namespace AntiFlood
 {
     public class RemoveWater : ModLoaderInterfaces.IOnRegisteringEntityManagers
     {
-        public void OnRegisteringEntityManagers(List<object> managers)
+        public void OnRegisteringEntityManagers(IEntityManager[] managers)
         {
-            for (int i = 0; i < managers.Count; i++)
+            for (int i = 0; i < managers.Length; i++)
             {
                 if (managers[i] is BlockEntities.Implementations.Water)
                 {
-                    managers.RemoveAt(i);
+                    managers[i] = new WaterAntiFlood();
                     return;
                 }
             }
