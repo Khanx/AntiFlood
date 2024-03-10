@@ -26,46 +26,54 @@ namespace AntiFlood
                 spreadWater = new ButtonCallback("Khanx.AntiFlood.Button", new LabelData("Disable water spread", UnityEngine.Color.red, UnityEngine.TextAnchor.MiddleCenter));
 
             tables.left.Rows.Add(spreadWater);
+
+            ButtonCallback drainWater = new ButtonCallback("Khanx.AntiFlood.Drain", new LabelData("Drain water"));
+            tables.left.Rows.Add(drainWater);
         }
 
         [ModLoader.ModCallback(ModLoader.EModCallbackType.OnPlayerPushedNetworkUIButton, "Khanx.AntiFlood.OnPlayerPushedNetworkUIButton")]
         public static void OnPlayerPushedNetworkUIButton(ButtonPressCallbackData data)
         {
-            if (!data.ButtonIdentifier.Equals("Khanx.AntiFlood.Button"))
-                return;
-
-            if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(data.Player.ActiveColony.ColonyGroup.MainColonyID))
+            if (data.ButtonIdentifier.Equals("Khanx.AntiFlood.Button"))
             {
-                WaterAntiFlood.coloniesWithWaterEnabled.Add(data.Player.ActiveColony.ColonyGroup.MainColonyID, data.Player.ID);
-
-                Chatting.Chat.Send(data.Player.ActiveColonyGroup.Owners, "<color=green>The spread of water in the colony has been enabled.</color>");
-
-                //Force OnUpdateAdjacent to each block of water
-                if (ServerManager.ServerSettings.Water.MaxUpdatesPerTick > 0)
+                if (!WaterAntiFlood.coloniesWithWaterEnabled.ContainsKey(data.Player.ActiveColony.ColonyGroup.MainColonyID))
                 {
-                    List<Vector3Int> positions = new List<Vector3Int>();
+                    WaterAntiFlood.coloniesWithWaterEnabled.Add(data.Player.ActiveColony.ColonyGroup.MainColonyID, data.Player.ID);
 
-                    for (int i = 0; i < data.Player.ActiveColonyGroup.Colonies.Count; i++)
+                    Chatting.Chat.Send(data.Player.ActiveColonyGroup.Owners, "<color=green>The spread of water in the colony has been enabled.</color>");
+
+                    //Force OnUpdateAdjacent to each block of water
+                    if (ServerManager.ServerSettings.Water.MaxUpdatesPerTick > 0)
                     {
-                        for (int j = 0; j < data.Player.ActiveColonyGroup.Colonies[i].Banners.Count; j++)
-                        {
-                            BlockEntities.Implementations.BannerTracker.Banner banner = data.Player.ActiveColonyGroup.Colonies[i].Banners[j];
+                        List<Vector3Int> positions = new List<Vector3Int>();
 
-                            ForeachBlockInArea(banner.Position - (banner.SafeRadius + 1), banner.Position + (banner.SafeRadius + 1), BlockTypes.BuiltinBlocks.Indices.water, pos =>
+                        for (int i = 0; i < data.Player.ActiveColonyGroup.Colonies.Count; i++)
+                        {
+                            for (int j = 0; j < data.Player.ActiveColonyGroup.Colonies[i].Banners.Count; j++)
                             {
-                                WaterAntiFlood.locationsToCheck.AddIfUnique(pos);
-                            });
+                                BlockEntities.Implementations.BannerTracker.Banner banner = data.Player.ActiveColonyGroup.Colonies[i].Banners[j];
+
+                                ForeachBlockInArea(banner.Position - (banner.SafeRadius + 1), banner.Position + (banner.SafeRadius + 1), BlockTypes.BuiltinBlocks.Indices.water, pos =>
+                                {
+                                    WaterAntiFlood.locationsToCheck.AddIfUnique(pos);
+                                });
+                            }
                         }
                     }
                 }
-            }
-            else
-            {
-                WaterAntiFlood.coloniesWithWaterEnabled.Remove(data.Player.ActiveColonyGroup.MainColonyID);
-                Chatting.Chat.Send(data.Player.ActiveColonyGroup.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
+                else
+                {
+                    WaterAntiFlood.coloniesWithWaterEnabled.Remove(data.Player.ActiveColonyGroup.MainColonyID);
+                    Chatting.Chat.Send(data.Player.ActiveColonyGroup.Owners, "<color=green>The spread of water in the colony has been disabled.</color>");
+                }
+
+                NetworkMenuManager.SendInventoryManageColonyUI(data.Player);
             }
 
-            NetworkMenuManager.SendInventoryManageColonyUI(data.Player);
+            if (data.ButtonIdentifier.Equals("Khanx.AntiFlood.Drain"))
+            {
+                Drain.DrainAdjacentWaterInColony(data.Player);
+            }
         }
 
         [ModLoader.ModCallback(ModLoader.EModCallbackType.OnPlayerDisconnected, "Khanx.AntiFlood.OnPlayerDisconnected")]

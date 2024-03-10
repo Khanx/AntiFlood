@@ -132,7 +132,7 @@ namespace AntiFlood
 
         private static bool CheckSpreadabilitySpot(Vector3Int spot, ref int spreadMax)
         {
-            //Seach CLOSEST banner | Not sure if this is the best way... Water won't spread through abandoned banners...
+            //Search CLOSEST banner | Not sure if this is the best way... Water won't spread through abandoned banners...
             if (ServerManager.BlockEntityTracker.BannerTracker.TryGetClosest(spot, out var banner))
             {
                 //Check SAFE area
