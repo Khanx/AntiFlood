@@ -18,7 +18,9 @@ namespace AntiFlood
                 return;
             }
 
-            if(!ServerManager.BlockEntityTracker.BannerTracker.TryGetClosest(position, out var banner))
+            bool foundBanner = ServerManager.BlockEntityTracker.BannerTracker.TryGetClosest(position, out var banner);
+
+            if (!foundBanner || ((position - banner.Position).MaxPartAbs > banner.SafeRadius))
             {
                 Chatting.Chat.Send(player, "<color=red>You can only drain water within the area of ​​your colony.</color>");
                 return;
