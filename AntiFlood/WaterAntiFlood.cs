@@ -23,6 +23,8 @@ namespace AntiFlood
 
         private static SortedSet<Vector3Int> tempList = new SortedSet<Vector3Int>(10, (Vector3Int a, Vector3Int b) => a.CompareTo(b));
 
+        public static BlockEntities.Implementations.WaterSpongeTracker SpongeTracker;
+
         ItemTypes.ItemType ISingleBlockEntityMapping.TypeToRegister => BuiltinBlocks.Types.water;
 
         void IUpdatedAdjacentType.OnUpdateAdjacent(AdjacentUpdateData data)
@@ -142,6 +144,16 @@ namespace AntiFlood
                     if (!coloniesWithWaterEnabled.ContainsKey(banner.Colony.ColonyGroup.MainColonyID))
                         return true;
                 }
+            }
+
+            if (SpongeTracker == null)
+            {
+                ServerManager.BlockEntityCallbacks.TryGetAutoLoadedInstance(out SpongeTracker);
+            }
+
+            if (SpongeTracker != null && SpongeTracker.IsSpongeNear(spot, out Vector3Int _))
+            {
+                return true;
             }
 
             switch (ServerManager.TryChangeBlock(spot, BuiltinBlocks.Types.air, BuiltinBlocks.Types.water, default(BlockChangeRequestOrigin), ESetBlockFlags.TriggerEntityCallbacks | ESetBlockFlags.TriggerNeighbourCallbacks))
